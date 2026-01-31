@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-void-lighter;
+  }
+  body {
+    @apply text-white font-body antialiased;
+    overflow-x: hidden;
+    /* 极光背景 - 深蓝基底 */
+    background: linear-gradient(180deg, #0a0a2e 0%, #0d0822 50%, #0a0a2e 100%);
+    min-height: 100vh;
+    position: relative;
+  }
+
+  /* ========== 极光层容器 ========== */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    /* 多层极光渐变叠加 */
+    background:
+      /* 极光带1 - 亮粉色核心 */
+      radial-gradient(ellipse 120vw 80vh at 20% 30%, rgba(255, 150, 180, 0.4) 0%, transparent 50%),
+      /* 极光带2 - 紫色扩散 */
+      radial-gradient(ellipse 100vw 70vh at 80% 40%, rgba(180, 100, 255, 0.35) 0%, transparent 50%),
+      /* 极光带3 - 深紫边缘 */
+      radial-gradient(ellipse 140vw 90vh at 50% 60%, rgba(138, 43, 226, 0.25) 0%, transparent 50%),
+      /* 极光带4 - 电光蓝点缀 */
+      radial-gradient(ellipse 80vw 60vh at 70% 80%, rgba(0, 240, 255, 0.2) 0%, transparent 45%),
+      /* 极光带5 - 暖橙流动 */
+      radial-gradient(ellipse 90vw 50vh at 30% 70%, rgba(255, 107, 53, 0.15) 0%, transparent 45%);
+    filter: blur(60px);
+    opacity: 0.8;
+    animation: aurora-drift 25s ease-in-out infinite alternate;
+  }
+
+  /* ========== 第二层极光（反向移动） ========== */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    /* 补充极光层 */
+    background:
+      /* 极光带6 - 粉紫交织 */
+      radial-gradient(ellipse 110vw 75vh at 60% 20%, rgba(218, 112, 214, 0.3) 0%, transparent 50%),
+      /* 极光带7 - 青色流动 */
+      radial-gradient(ellipse 70vw 50vh at 15% 60%, rgba(77, 255, 255, 0.2) 0%, transparent 45%);
+    filter: blur(80px);
+    opacity: 0.6;
+    animation: aurora-drift-reverse 30s ease-in-out infinite alternate;
+  }
+
+  /* ========== 星空层 ========== */
+  .stars-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background-image:
+      /* 第一层星点 - 小而密 */
+      radial-gradient(1px 1px at 10% 15%, rgba(255, 255, 255, 0.9), transparent),
+      radial-gradient(1.5px 1.5px at 25% 35%, rgba(255, 255, 255, 0.7), transparent),
+      radial-gradient(1px 1px at 40% 20%, rgba(255, 255, 255, 0.8), transparent),
+      radial-gradient(2px 2px at 55% 45%, rgba(255, 255, 255, 0.6), transparent),
+      radial-gradient(1px 1px at 70% 25%, rgba(255, 255, 255, 0.9), transparent),
+      radial-gradient(1.5px 1.5px at 85% 55%, rgba(255, 255, 255, 0.7), transparent),
+      radial-gradient(1px 1px at 95% 30%, rgba(255, 255, 255, 0.8), transparent),
+      radial-gradient(1px 1px at 15% 65%, rgba(255, 255, 255, 0.7), transparent),
+      radial-gradient(2px 2px at 30% 80%, rgba(255, 255, 255, 0.5), transparent),
+      radial-gradient(1px 1px at 45% 70%, rgba(255, 255, 255, 0.8), transparent),
+      radial-gradient(1.5px 1.5px at 60% 85%, rgba(255, 255, 255, 0.6), transparent),
+      radial-gradient(1px 1px at 75% 75%, rgba(255, 255, 255, 0.9), transparent),
+      radial-gradient(2px 2px at 90% 90%, rgba(255, 255, 255, 0.7), transparent),
+      radial-gradient(1px 1px at 5% 90%, rgba(255, 255, 255, 0.8), transparent),
+      radial-gradient(1.5px 1.5px at 20% 10%, rgba(255, 255, 255, 0.6), transparent),
+      /* 第二层星点 - 较大较亮 */
+      radial-gradient(2px 2px at 35% 50%, rgba(255, 255, 255, 0.9), transparent),
+      radial-gradient(1px 1px at 50% 10%, rgba(255, 255, 255, 0.7), transparent),
+      radial-gradient(2.5px 2.5px at 65% 35%, rgba(255, 255, 255, 0.8), transparent),
+      radial-gradient(1px 1px at 80% 15%, rgba(255, 255, 255, 0.6), transparent),
+      radial-gradient(1.5px 1.5px at 12% 40%, rgba(255, 255, 255, 0.9), transparent),
+      radial-gradient(1px 1px at 28% 55%, rgba(255, 255, 255, 0.7), transparent),
+      radial-gradient(2px 2px at 42% 95%, rgba(255, 255, 255, 0.8), transparent),
+      radial-gradient(1px 1px at 58% 5%, rgba(255, 255, 255, 0.6), transparent),
+      radial-gradient(2.5px 2.5px at 72% 65%, rgba(255, 255, 255, 0.9), transparent),
+      radial-gradient(1px 1px at 88% 40%, rgba(255, 255, 255, 0.7), transparent);
+    animation: stars-twinkle 4s ease-in-out infinite alternate;
+  }
+
+  /* 确保内容在极光层之上 */
+  #app {
+    position: relative;
+    z-index: 2;
+  }
+}
+
+/* ========== 极光漂流动画（向右上方） ========== */
+@keyframes aurora-drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(5%, -3%) scale(1.05);
+  }
+  66% {
+    transform: translate(-3%, 5%) scale(0.95);
+  }
+  100% {
+    transform: translate(3%, 3%) scale(1.02);
+  }
+}
+
+/* ========== 极光漂流动画（向左下方，反向） ========== */
+@keyframes aurora-drift-reverse {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(-5%, 3%) scale(1.03) rotate(1deg);
+  }
+  66% {
+    transform: translate(3%, -5%) scale(0.97) rotate(-1deg);
+  }
+  100% {
+    transform: translate(-3%, -3%) scale(1.01) rotate(0.5deg);
+  }
+}
+
+/* ========== 星星闪烁动画 ========== */
+@keyframes stars-twinkle {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  .glass-strong {
+    @apply bg-void/80 backdrop-blur-2xl border border-white/10;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-body font-semibold text-sm transition-all duration-300;
+  }
+
+  .btn-primary {
+    @apply bg-lava text-white hover:bg-lava-dark hover:shadow-lg hover:shadow-lava/25 hover:-translate-y-0.5;
+  }
+
+  .btn-secondary {
+    @apply bg-void-light text-white hover:bg-void-lighter hover:-translate-y-0.5;
+  }
+
+  .btn-ghost {
+    @apply text-white/70 hover:text-white hover:bg-white/5;
+  }
+
+  .btn-electric {
+    @apply bg-electric text-void hover:bg-electric-dark hover:shadow-lg hover:shadow-electric/25 hover:-translate-y-0.5;
+  }
+
+  .card {
+    @apply bg-void-light rounded-2xl border border-white/5 overflow-hidden;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:border-white/10 hover:-translate-y-1 hover:shadow-xl;
+  }
+
+  .input {
+    @apply w-full px-4 py-3 bg-void-light border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-lava/50 focus:ring-1 focus:ring-lava/50 transition-all;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300;
+  }
+
+  .nav-item-active {
+    @apply bg-lava/10 text-lava border border-lava/20;
+  }
+
+  .nav-item-inactive {
+    @apply text-white/50 hover:text-white hover:bg-white/5;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-void;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20;
+  }
+
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+}
