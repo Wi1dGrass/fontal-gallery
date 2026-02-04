@@ -16,6 +16,7 @@ const routes = [
   { path: '/admin', name: 'AdminDashboard', component: () => import('./views/AdminDashboard.vue'), meta: { requiresAuth: true } },
   { path: '/personal', name: 'PersonalSpace', component: () => import('./views/PersonalSpace.vue'), meta: { requiresAuth: true } },
   { path: '/team', name: 'TeamSpace', component: () => import('./views/TeamSpace.vue'), meta: { requiresAuth: true } },
+  { path: '/upload', name: 'UploadStudio', component: () => import('./views/UploadStudio.vue'), meta: { requiresAuth: true } },
   { path: '/user/:userId', name: 'UserDetail', component: () => import('./views/UserDetailView.vue') },
 ]
 

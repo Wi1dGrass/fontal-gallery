@@ -31,10 +31,10 @@
           <button class="btn btn-ghost p-2">
             <Bell class="w-5 h-5" />
           </button>
-          <button class="btn btn-primary">
+          <router-link to="/upload" class="btn btn-primary">
             <Upload class="w-4 h-4" />
             上传
-          </button>
+          </router-link>
           <UserDropdown />
         </div>
       </div>
@@ -74,20 +74,52 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Bell, Upload, Home, Shield, User, Users, Settings } from 'lucide-vue-next'
 import UserDropdown from './components/UserDropdown.vue'
+import { API_BASE_URL } from '@/config/api.js'
 
 const route = useRoute()
+const currentUser = ref(null)
 
 // 判断是否是登录页面（独立布局）
 const isAuthPage = computed(() => route.path === '/auth')
 
-const navItems = [
+// 导航菜单项
+const allNavItems = [
   { path: '/', label: '公共图库', icon: Home, desc: '浏览和检索公开图片' },
-  { path: '/admin', label: '管理后台', icon: Shield, desc: '审核、管理和分析', badge: '12' },
+  { path: '/admin', label: '管理后台', icon: Shield, desc: '审核、管理和分析', adminOnly: true },
   { path: '/personal', label: '个人空间', icon: User, desc: '私有图片管理' },
   { path: '/team', label: '团队空间', icon: Users, desc: '团队协作编辑' },
 ]
+
+// 根据用户角色过滤导航菜单
+const navItems = computed(() => {
+  return allNavItems.filter(item => {
+    if (item.adminOnly) {
+      return currentUser.value?.userRole === 'admin'
+    }
+    return true
+  })
+})
+
+// 获取当前用户
+async function fetchCurrentUser() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/current`, {
+      credentials: 'include'
+    })
+    const result = await response.json()
+    if (result.code === 0) {
+      currentUser.value = result.data
+    }
+  } catch (error) {
+    // 静默处理
+  }
+}
+
+onMounted(() => {
+  fetchCurrentUser()
+})
 </script>

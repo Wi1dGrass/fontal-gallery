@@ -35,25 +35,78 @@
         <!-- 用户信息卡片 -->
         <div class="profile-card">
           <div class="profile-header">
-            <div class="avatar-section">
-              <div class="avatar-large">
+            <!-- 头像上传区域 -->
+            <div
+              class="avatar-upload-zone"
+              :class="{
+                'is-dragging': avatarUpload.isDragging,
+                'is-uploading': avatarUpload.isUploading
+              }"
+              @dragover="handleDragOver"
+              @dragleave="handleDragLeave"
+              @drop="handleDrop"
+              @click="triggerFileInput"
+            >
+              <!-- 头像显示 -->
+              <div class="avatar-display">
                 <img
-                  v-if="form.userAvatar"
-                  :src="form.userAvatar"
+                  v-if="avatarUpload.previewUrl || form.userAvatar"
+                  :src="avatarUpload.previewUrl || form.userAvatar"
                   :alt="form.userName"
                   class="avatar-image"
+                  :class="{ 'uploading-pulse': avatarUpload.isUploading }"
                 />
                 <span v-else class="avatar-fallback">
                   {{ form.userName?.charAt(0)?.toUpperCase() || 'U' }}
                 </span>
+
+                <!-- 上传进度环 -->
+                <svg v-if="avatarUpload.isUploading" class="progress-ring" viewBox="0 0 100 100">
+                  <circle
+                    class="progress-ring-bg"
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.1)"
+                    stroke-width="4"
+                  />
+                  <circle
+                    class="progress-ring-fill"
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="none"
+                    stroke="url(#progressGradient)"
+                    stroke-width="4"
+                    :stroke-dasharray="283"
+                    :stroke-dashoffset="283 - (283 * avatarUpload.progress) / 100"
+                    transform="rotate(-90 50 50)"
+                  />
+                  <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#00F0FF" />
+                      <stop offset="100%" stop-color="#FF3D00" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+
+                <!-- 上传中图标 -->
+                <div v-if="avatarUpload.isUploading" class="uploading-icon">
+                  <Loader2 class="spinner-small" />
+                </div>
+
                 <!-- 头像发光效果 -->
-                <div class="avatar-glow"></div>
+                <div class="avatar-glow" :class="{ 'glow-uploading': avatarUpload.isUploading }"></div>
               </div>
 
-              <!-- 上传按钮 -->
-              <button class="avatar-upload-btn" @click="triggerFileInput">
-                <Camera class="camera-icon" />
-              </button>
+              <!-- 悬浮操作层 -->
+              <div class="avatar-overlay" :class="{ 'show': !avatarUpload.isUploading }">
+                <Upload class="overlay-icon" />
+                <span class="overlay-text">拖拽或点击上传</span>
+              </div>
+
+              <!-- 隐藏的文件输入 -->
               <input
                 ref="fileInputRef"
                 type="file"
@@ -63,6 +116,39 @@
               />
             </div>
 
+            <!-- 上传方式按钮 -->
+            <div class="avatar-actions">
+              <button
+                class="avatar-action-btn url-btn"
+                @click="avatarUpload.showUrlInput = !avatarUpload.showUrlInput"
+              >
+                <Link class="btn-icon-small" />
+                使用URL
+              </button>
+            </div>
+
+            <!-- URL输入框 -->
+            <Transition name="slide-down">
+              <div v-if="avatarUpload.showUrlInput" class="url-input-wrapper">
+                <div class="url-input-group">
+                  <input
+                    v-model="avatarUpload.avatarUrl"
+                    type="text"
+                    class="url-input"
+                    placeholder="粘贴图片URL..."
+                    @keyup.enter="handleAvatarUrlUpload"
+                  />
+                  <button class="url-submit-btn" @click="handleAvatarUrlUpload">
+                    <Upload class="submit-icon" />
+                  </button>
+                  <button class="url-cancel-btn" @click="cancelUrlInput">
+                    <X class="cancel-icon" />
+                  </button>
+                </div>
+              </div>
+            </Transition>
+
+            <!-- 用户信息 -->
             <div class="profile-info">
               <div class="profile-name-row">
                 <h2 class="profile-name">{{ form.userName || '用户' }}</h2>
@@ -370,9 +456,9 @@ import {
   User, Mail, Lock, Camera, Hash, Calendar, Clock, Shield,
   ChevronRight, Loader2, Check, Eye, EyeOff, KeyRound, LockKeyhole,
   AlertCircle, AlertTriangle, Trash2, Bell, CheckCircle, XCircle,
-  Github
+  Github, Upload, Link, X
 } from 'lucide-vue-next'
-import { API_BASE_URL } from '@/config/api.js'
+import { API_BASE_URL, uploadAvatar, uploadAvatarByUrl } from '@/config/api.js'
 import { LIMITS, TOAST_DURATION } from '@/config/constants.js'
 
 const router = useRouter()
@@ -432,6 +518,16 @@ const isChangingPassword = ref(false)
 
 // 文件上传
 const fileInputRef = ref(null)
+
+// 头像上传状态
+const avatarUpload = reactive({
+  isUploading: false,
+  progress: 0,
+  showUrlInput: false,
+  avatarUrl: '',
+  isDragging: false,
+  previewUrl: null
+})
 
 // Toast 提示
 const showToast = ref(false)
@@ -511,11 +607,29 @@ function triggerFileInput() {
   fileInputRef.value?.click()
 }
 
-// 处理文件选择
-async function handleFileChange(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
+// 拖拽事件处理
+function handleDragOver(event) {
+  event.preventDefault()
+  avatarUpload.isDragging = true
+}
 
+function handleDragLeave(event) {
+  event.preventDefault()
+  avatarUpload.isDragging = false
+}
+
+async function handleDrop(event) {
+  event.preventDefault()
+  avatarUpload.isDragging = false
+
+  const file = event.dataTransfer.files?.[0]
+  if (file) {
+    await uploadAvatarFile(file)
+  }
+}
+
+// 上传头像文件
+async function uploadAvatarFile(file) {
   // 检查文件类型
   if (!file.type.startsWith('image/')) {
     showToastMsg('请选择图片文件', 'error')
@@ -529,30 +643,122 @@ async function handleFileChange(event) {
     return
   }
 
-  // 上传图片
+  avatarUpload.isUploading = true
+  avatarUpload.progress = 0
+
+  // 创建预览
+  avatarUpload.previewUrl = URL.createObjectURL(file)
+
   try {
-    const formData = new FormData()
-    formData.append('file', file)
+    // 模拟进度
+    const progressInterval = setInterval(() => {
+      if (avatarUpload.progress < 90) {
+        avatarUpload.progress += 10
+      }
+    }, 100)
 
-    const response = await fetch(`${API_BASE_URL}/picture/upload`, {
-      method: 'POST',
-      credentials: 'include',
-      body: formData
-    })
+    const result = await uploadAvatar(file)
 
-    const result = await response.json()
-    if (result.code === 0 && result.data?.url) {
-      form.userAvatar = result.data.url
+    clearInterval(progressInterval)
+    avatarUpload.progress = 100
+
+    if (result.code === 0 && result.data) {
+      form.userAvatar = result.data
       showToastMsg('头像上传成功')
+
+      // 自动保存
+      await saveAvatarChange()
     } else {
-      showToastMsg('头像上传失败', 'error')
+      showToastMsg(result.message || '头像上传失败', 'error')
+      avatarUpload.previewUrl = null
     }
   } catch (error) {
     showToastMsg('头像上传失败', 'error')
+    avatarUpload.previewUrl = null
+  } finally {
+    avatarUpload.isUploading = false
+    avatarUpload.progress = 0
   }
+}
 
+// 处理文件选择
+async function handleFileChange(event) {
+  const file = event.target.files?.[0]
+  if (file) {
+    await uploadAvatarFile(file)
+  }
   // 清空文件输入
   event.target.value = ''
+}
+
+// 通过URL上传头像
+async function handleAvatarUrlUpload() {
+  if (!avatarUpload.avatarUrl.trim()) {
+    showToastMsg('请输入图片URL', 'error')
+    return
+  }
+
+  // 简单验证URL格式
+  const urlPattern = /^https?:\/\/.+/i
+  if (!urlPattern.test(avatarUpload.avatarUrl.trim())) {
+    showToastMsg('请输入有效的URL地址', 'error')
+    return
+  }
+
+  avatarUpload.isUploading = true
+  avatarUpload.previewUrl = avatarUpload.avatarUrl.trim()
+
+  try {
+    const result = await uploadAvatarByUrl(avatarUpload.avatarUrl.trim())
+
+    if (result.code === 0 && result.data) {
+      form.userAvatar = result.data
+      showToastMsg('头像上传成功')
+      avatarUpload.showUrlInput = false
+      avatarUpload.avatarUrl = ''
+
+      // 自动保存
+      await saveAvatarChange()
+    } else {
+      showToastMsg(result.message || '头像上传失败', 'error')
+      avatarUpload.previewUrl = null
+    }
+  } catch (error) {
+    showToastMsg('头像上传失败', 'error')
+    avatarUpload.previewUrl = null
+  } finally {
+    avatarUpload.isUploading = false
+  }
+}
+
+// 保存头像更改
+async function saveAvatarChange() {
+  if (!form.id) return
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/update`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: form.id,
+        userAvatar: form.userAvatar
+      })
+    })
+
+    const result = await response.json()
+    if (result.code === 0) {
+      Object.assign(originalForm, form)
+    }
+  } catch (error) {
+    // 静默处理
+  }
+}
+
+// 取消URL输入
+function cancelUrlInput() {
+  avatarUpload.showUrlInput = false
+  avatarUpload.avatarUrl = ''
 }
 
 // 保存用户信息
@@ -675,6 +881,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600;700&display=swap');
+
 .loading-overlay {
   position: fixed;
   inset: 0;
@@ -829,95 +1037,299 @@ onMounted(() => {
 
 .profile-header {
   display: flex;
+  flex-direction: column;
   gap: 24px;
   align-items: center;
 }
 
-.avatar-section {
+/* ========== 头像上传区域 ========== */
+.avatar-upload-zone {
   position: relative;
+  width: 140px;
+  height: 140px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.avatar-large {
+.avatar-upload-zone.is-dragging {
+  transform: scale(1.05);
+}
+
+.avatar-upload-zone.is-dragging .avatar-display {
+  border-color: var(--electric, #00F0FF);
+  box-shadow: 0 0 40px rgba(0, 240, 255, 0.3);
+}
+
+.avatar-upload-zone.is-uploading {
+  cursor: wait;
+}
+
+.avatar-display {
   position: relative;
-  width: 100px;
-  height: 100px;
+  width: 100%;
+  height: 100%;
+  border-radius: 28px;
+  overflow: hidden;
+  background: rgba(10, 10, 15, 0.8);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.avatar-upload-zone:hover .avatar-display {
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .avatar-image {
   width: 100%;
   height: 100%;
-  border-radius: 24px;
   object-fit: cover;
-  position: relative;
-  z-index: 2;
+  transition: all 0.3s ease;
+}
+
+.avatar-image.uploading-pulse {
+  filter: blur(2px) brightness(0.7);
+  animation: uploadPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes uploadPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
 }
 
 .avatar-fallback {
   width: 100%;
   height: 100%;
-  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
   background: linear-gradient(135deg, var(--electric, #00F0FF), var(--electric-glow, #4DFFFF));
   color: var(--void, #0a0a0a);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-  font-weight: 700;
-  position: relative;
-  z-index: 2;
 }
 
-.avatar-glow {
+/* 进度环 */
+.progress-ring {
   position: absolute;
-  inset: -6px;
-  background: linear-gradient(135deg, var(--electric, #00F0FF), var(--lava, #FF3D00));
-  border-radius: 30px;
-  opacity: 0.4;
-  filter: blur(20px);
-  animation: avatarGlow 4s ease-in-out infinite;
-  z-index: 1;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  animation: progressSpin 1s linear infinite;
 }
 
-@keyframes avatarGlow {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.5; }
+.progress-ring-fill {
+  transition: stroke-dashoffset 0.3s ease;
 }
 
-.avatar-upload-btn {
+@keyframes progressSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 上传中图标 */
+.uploading-icon {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 32px;
-  height: 32px;
-  background: var(--lava, #FF3D00);
-  border: 3px solid var(--void, #0a0a0a);
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 3;
-}
-
-.avatar-upload-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 20px rgba(255, 61, 0, 0.5);
-}
-
-.camera-icon {
-  width: 14px;
-  height: 14px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   color: white;
 }
 
-.profile-info {
+.spinner-small {
+  width: 32px;
+  height: 32px;
+  animation: spin 1s linear infinite;
+}
+
+/* 头像发光效果 */
+.avatar-glow {
+  position: absolute;
+  inset: -8px;
+  background: linear-gradient(135deg, var(--electric, #00F0FF), var(--lava, #FF3D00));
+  border-radius: 36px;
+  opacity: 0.3;
+  filter: blur(24px);
+  z-index: -1;
+  transition: all 0.4s ease;
+}
+
+.avatar-glow.glow-uploading {
+  opacity: 0.6;
+  animation: glowPulse 1s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* 悬浮遮罩层 */
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  border-radius: 26px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.avatar-overlay.show {
+  opacity: 1;
+}
+
+.avatar-upload-zone:hover .avatar-overlay.show {
+  opacity: 1;
+}
+
+.overlay-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--electric, #00F0FF);
+}
+
+.overlay-text {
+  font-family: 'Exo 2', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+/* ========== 头像操作按钮 ========== */
+.avatar-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 300px;
+}
+
+.avatar-action-btn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.avatar-action-btn:hover {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: rgba(0, 240, 255, 0.3);
+  color: var(--electric, #00F0FF);
+  transform: translateY(-2px);
+}
+
+.btn-icon-small {
+  width: 16px;
+  height: 16px;
+}
+
+/* ========== URL输入框 ========== */
+.url-input-wrapper {
+  width: 100%;
+  max-width: 400px;
+}
+
+.url-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.url-input {
+  flex: 1;
+  padding: 12px 16px;
+  background: rgba(10, 10, 15, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: white;
+  font-family: 'Exo 2', sans-serif;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.url-input:focus {
+  outline: none;
+  border-color: var(--electric, #00F0FF);
+  box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.1);
+}
+
+.url-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.url-submit-btn,
+.url-cancel-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.url-submit-btn:hover {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: rgba(0, 240, 255, 0.3);
+  color: var(--electric, #00F0FF);
+}
+
+.url-cancel-btn:hover {
+  background: rgba(255, 61, 0, 0.15);
+  border-color: rgba(255, 61, 0, 0.3);
+  color: var(--lava, #FF3D00);
+}
+
+.submit-icon,
+.cancel-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Slide down 动画 */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease;
+  transform-origin: top;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  transform: scaleY(0.8) translateY(-10px);
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .profile-name-row {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   margin-bottom: 8px;
 }
@@ -1472,13 +1884,17 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .profile-header {
-    flex-direction: column;
-    text-align: center;
+  .avatar-upload-zone {
+    width: 120px;
+    height: 120px;
   }
 
-  .profile-name-row {
-    justify-content: center;
+  .avatar-actions {
+    max-width: 100%;
+  }
+
+  .url-input-wrapper {
+    max-width: 100%;
   }
 }
 

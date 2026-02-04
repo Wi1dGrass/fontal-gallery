@@ -47,14 +47,15 @@ async function safeRequest(url, options = {}) {
 
 /**
  * 上传图片（文件）
+ * 第一步：只上传文件和空间ID，返回 pictureId 后再用 updatePicture 更新信息
+ * @param {File} file - 图片文件
+ * @param {Object} options - 上传选项
+ * @param {number} options.spaceId - 空间ID（0表示公共空间）
  */
 export async function uploadPicture(file, options = {}) {
   const formData = new FormData()
   formData.append('file', file)
-
-  // 添加可选参数
-  if (options.id) formData.append('id', options.id)
-  if (options.fileUrl) formData.append('fileUrl', options.fileUrl)
+  formData.append('spaceId', options.spaceId ?? 0)
 
   return safeRequest(`${API_BASE_URL}/picture/upload`, {
     method: 'POST',
@@ -139,5 +140,93 @@ export async function doPictureReview(data) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
+  })
+}
+
+// ========== 用户头像 API ==========
+
+/**
+ * 上传用户头像（文件）
+ */
+export async function uploadAvatar(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  return safeRequest(`${API_BASE_URL}/user/avatar/upload`, {
+    method: 'POST',
+    body: formData
+  })
+}
+
+/**
+ * 上传用户头像（URL）
+ */
+export async function uploadAvatarByUrl(fileUrl) {
+  return safeRequest(`${API_BASE_URL}/user/avatar/upload/url`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileUrl })
+  })
+}
+
+// ========== 空间管理 API ==========
+
+/**
+ * 创建个人空间
+ */
+export async function createSpace(spaceName, spaceLevel) {
+  return safeRequest(`${API_BASE_URL}/space/add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spaceName, spaceLevel })
+  })
+}
+
+/**
+ * 编辑空间名称
+ */
+export async function editSpace(id, spaceName) {
+  return safeRequest(`${API_BASE_URL}/space/edit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, spaceName })
+  })
+}
+
+/**
+ * 获取空间详情
+ */
+export async function getSpaceById(id) {
+  return safeRequest(`${API_BASE_URL}/space/get/vo?id=${id}`)
+}
+
+/**
+ * 分页获取空间列表
+ */
+export async function getSpaceListPage(query = {}) {
+  return safeRequest(`${API_BASE_URL}/space/list/page/vo`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(query)
+  })
+}
+
+/**
+ * 删除空间
+ */
+export async function deleteSpace(id) {
+  return safeRequest(`${API_BASE_URL}/space/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id })
+  })
+}
+
+/**
+ * 获取我的个人空间
+ */
+export async function getMySpace() {
+  return safeRequest(`${API_BASE_URL}/space/get/my`, {
+    credentials: 'include'
   })
 }
